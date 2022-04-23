@@ -8,7 +8,7 @@ const publicSequences = [
   "[0]              # it displays 0 in the beginning",
   "1                # enters a number",
   "1[1]             # it displays the number",
-  "12[12]           # it accumulates numbers (i*10 + n)",
+  "12[12]           # it accumulates digits (n*10 + d)",
   "0[0]",
   "012[12]",
   "120[120]",

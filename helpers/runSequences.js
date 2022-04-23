@@ -6,11 +6,10 @@ expect.extend({ toSatisfy });
 export function runSequences(sequences, Calculator) {
   const [failedIndex, error] = findFailingSequence(sequences, Calculator);
 
-  writeHeaderStatus(sequences, failedIndex, error);
+  writeProgressNumber(sequences, failedIndex);
   writeSequencesSteps(sequences, failedIndex);
-  writeFooterProgressNumber(sequences, failedIndex);
-
-  process.stdout.write("\n\n");
+  process.stdout.write("\n");
+  writeStatus(sequences, failedIndex, error);
 
   if (error) throwError(error, failedIndex);
 }
@@ -27,7 +26,8 @@ function throwError(error, failedIndex) {
 
   error.message = newMessage;
 
-  throw error;
+  if (!process.env.CI) throw error;
+  console.error(error.stack);
 }
 
 function findFailingSequence(sequences, Calculator) {
@@ -44,33 +44,36 @@ function findFailingSequence(sequences, Calculator) {
   return [nextSequenceIndex, error];
 }
 
-function writeHeaderStatus(sequences, failedIndex, error) {
-  if (!error) writeHeaderStatusPass();
-  else writeHeaderStatusFail(sequences, failedIndex, error);
+function writeStatus(sequences, failedIndex, error) {
+  if (!error) writeStatusPass();
+  else writeStatusFail(sequences, failedIndex, error);
 }
 
-function writeHeaderStatusPass() {
+function writeStatusPass() {
   process.stdout.write(
     `${chalk.green.bold.inverse(" 100% ")} All examples passed successfully.\n`
   );
 }
 
-function writeHeaderStatusFail(sequences, failedIndex, error) {
+function writeStatusFail(sequences, failedIndex, error) {
   const prop = calculateProp(failedIndex, sequences);
-  const lines = error.message.split("\n");
-  const message = `${lines[0]}\n${chalk.bold(lines[3].slice(7))}`;
+  const message = error.message.split("\n")[0];
 
   const sequence = sequences[failedIndex];
   const order = failedIndex + 1;
-  const { sequenceIndex } = error;
+  const sequenceIndex = error.sequenceIndex || 0;
   const passedSequence = chalk.green(`"${sequence.slice(0, sequenceIndex)}`);
   const failedSequence = chalk.red.bold(`${sequence[sequenceIndex]}`);
   const unknownSequence = chalk.gray(`${sequence.slice(sequenceIndex + 1)}"`);
 
+  process.stdout.write(padLeft("v\n", sequenceIndex + 15));
   process.stdout.write(
-    `${chalk.bold.yellow.inverse(
-      ` ${padLeft(prop, 3)}% `
-    )} ${order}: ${passedSequence}${failedSequence}${unknownSequence}: ${message}\n`
+    `${chalk.bold.yellow.inverse(` ${padLeft(prop, 3)}% `)} ${padLeft(
+      order,
+      3
+    )}: ${passedSequence}${failedSequence}${unknownSequence}: ${chalk.red(
+      message
+    )}\n`
   );
 }
 
@@ -121,15 +124,19 @@ function writeSequenceStep(sequences, index, state) {
   );
 }
 
-function writeFooterProgressNumber(sequences, failedIndex) {
+function writeProgressNumber(sequences, failedIndex) {
   const prop = calculateProp(failedIndex, sequences);
   const count = sequences.length;
-  const currentOrder = Math.min(failedIndex + 1, count);
   const last = failedIndex === count;
+  const color = (last ? chalk.green : chalk.yellow).inverse.bold;
+
   process.stdout.write(
-    figlet.textSync(`  ${currentOrder}${last ? "!" : ""}`, "Ghost")
+    color(`    ~~ ${failedIndex}/${sequences.length} · ${prop}% ~~    \n`)
   );
-  process.stdout.write(`${currentOrder}/${sequences.length}·${prop}%\n`);
+  process.stdout.write(
+    figlet.textSync(`  ${failedIndex}${last ? "!" : ""}`, "Ghost")
+  );
+  process.stdout.write("\n\n");
 }
 
 function padLeft(text, length) {
